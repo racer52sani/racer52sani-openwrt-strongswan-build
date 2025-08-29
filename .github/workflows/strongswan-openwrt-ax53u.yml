@@ -38,7 +38,7 @@ jobs:
           STRONGSWAN_MK="package/network/services/strongswan/Makefile"
           if [ -f "$STRONGSWAN_MK" ]; then
             echo "Patching $STRONGSWAN_MK to disable WolfSSL..."
-            cat <<'EOF' >> "$STRONGSWAN_MK"
+            cat >> "$STRONGSWAN_MK" <<'EOF'
 # Force OpenSSL instead of WolfSSL
 CONFIGURE_ARGS += --with-openssl --disable-wolfssl
 EOF
@@ -50,3 +50,9 @@ EOF
         run: |
           cd openwrt-sdk
           make package/strongswan/compile V=s
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: strongswan-ipk
+          path: openwrt-sdk/bin/packages/**/*.ipk
