@@ -1,0 +1,65 @@
+name: Build StrongSwan for OpenWrt (ASUS RT-AX53U)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang flex bison g++ gawk \
+            gcc-multilib g++-multilib gettext git libncurses5-dev libssl-dev \
+            python3-distutils rsync unzip zlib1g-dev file wget curl
+
+      - name: Download & extract OpenWrt SDK
+        shell: bash
+        run: |
+          set -euxo pipefail
+          SDK_URL="https://downloads.openwrt.org/releases/23.05.5/targets/ramips/mt7621/openwrt-sdk-23.05.5-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64.tar.xz"
+          wget -q "$SDK_URL"
+          TARBALL="$(basename "$SDK_URL")"
+
+          # extract
+          tar -xf "$TARBALL"
+
+          # find extracted directory (it always starts with openwrt-sdk-...)
+          TOPDIR=$(find . -maxdepth 1 -type d -name "openwrt-sdk-*" | head -n1)
+
+          # normalize dir name
+          mv "$TOPDIR" openwrt-sdk
+
+      - name: Update feeds
+        run: |
+          cd openwrt-sdk
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Patch StrongSwan to use OpenSSL
+        run: |
+          cd openwrt-sdk
+          STRONGSWAN_MK="package/network/services/strongswan/Makefile"
+          if [ -f "$STRONGSWAN_MK" ]; then
+            echo "Patching $STRONGSWAN_MK to disable WolfSSL..."
+            echo '# Force OpenSSL instead of WolfSSL' >> "$STRONGSWAN_MK"
+            echo 'CONFIGURE_ARGS += --with-openssl --disable-wolfssl' >> "$STRONGSWAN_MK"
+          else
+            echo "StrongSwan Makefile not found!" && exit 1
+          fi
+
+      - name: Build StrongSwan
+        run: |
+          cd openwrt-sdk
+          make package/strongswan/compile V=s
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: strongswan-ipk
+          path: openwrt-sdk/bin/packages/**/*.ipk
