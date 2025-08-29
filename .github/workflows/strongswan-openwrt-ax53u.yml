@@ -18,7 +18,7 @@ jobs:
             gcc-multilib g++-multilib gettext git libncurses5-dev libssl-dev \
             python3-distutils rsync unzip zlib1g-dev file wget curl
 
-      - name: Download & extract OpenWrt SDK (23.05.5, ramips/mt7621)
+      - name: Download & extract OpenWrt SDK
         shell: bash
         run: |
           set -euxo pipefail
@@ -26,11 +26,11 @@ jobs:
           wget -q "$SDK_URL"
           TARBALL="$(basename "$SDK_URL")"
 
-          # detect top dir before extraction
-          TOPDIR="$(tar -tf "$TARBALL" | head -1 | cut -f1 -d'/')"
-
           # extract
           tar -xf "$TARBALL"
+
+          # find extracted directory (it always starts with openwrt-sdk-...)
+          TOPDIR=$(find . -maxdepth 1 -type d -name "openwrt-sdk-*" | head -n1)
 
           # normalize dir name
           mv "$TOPDIR" openwrt-sdk
