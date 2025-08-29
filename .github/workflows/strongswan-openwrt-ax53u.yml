@@ -32,10 +32,15 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
+      - name: Add StrongSwan package
+        run: |
+          cd openwrt-sdk
+          ./scripts/feeds install strongswan
+
       - name: Patch StrongSwan to use OpenSSL
         run: |
           cd openwrt-sdk
-          STRONGSWAN_MK="package/network/services/strongswan/Makefile"
+          STRONGSWAN_MK="package/feeds/packages/strongswan/Makefile"
           if [ -f "$STRONGSWAN_MK" ]; then
             echo "Patching $STRONGSWAN_MK to disable WolfSSL..."
             echo "# Force OpenSSL instead of WolfSSL" >> "$STRONGSWAN_MK"
@@ -47,6 +52,7 @@ jobs:
       - name: Build StrongSwan
         run: |
           cd openwrt-sdk
+          make defconfig
           make package/strongswan/compile V=s
 
       - name: Upload artifacts
