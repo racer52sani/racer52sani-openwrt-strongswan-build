@@ -1,0 +1,55 @@
+name: Build StrongSwan for OpenWrt (ASUS RT-AX53U)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git wget libncurses5-dev \
+                                   gawk python3 file unzip
+
+      - name: Download OpenWrt SDK
+        run: |
+          SDK_URL=https://downloads.openwrt.org/releases/23.05.5/targets/ramips/mt7621/openwrt-sdk-23.05.5-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+          wget $SDK_URL
+          tar -xf openwrt-sdk-*.tar.xz
+          mv openwrt-sdk-* openwrt-sdk
+
+      - name: Update and install feeds
+        run: |
+          cd openwrt-sdk
+          ./scripts/feeds update -a
+          ./scripts/feeds install strongswan
+
+      - name: Patch StrongSwan Makefile (disable wolfSSL, force OpenSSL)
+        run: |
+          cd openwrt-sdk
+          STRONGSWAN_MK="feeds/packages/net/strongswan/Makefile"
+          if [ -f "$STRONGSWAN_MK" ]; then
+            echo "Patching $STRONGSWAN_MK..."
+            # Force OpenSSL, disable wolfSSL and unnecessary plugins
+            sed -i 's|CONFIGURE_ARGS :=.*|CONFIGURE_ARGS := --with-openssl --disable-wolfssl --disable-gmp --disable-kernel-pfkey --disable-kernel-pfroute|' "$STRONGSWAN_MK"
+          else
+            echo "StrongSwan Makefile not found!" && exit 1
+          fi
+
+      - name: Build strongSwan IPK
+        run: |
+          cd openwrt-sdk
+          make defconfig
+          make package/strongswan/compile V=s
+
+      - name: Upload compiled IPKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: strongswan-ipks
+          path: openwrt-sdk/bin/packages/*/base/strongswan*.ipk
