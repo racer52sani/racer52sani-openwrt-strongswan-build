@@ -38,10 +38,8 @@ jobs:
           STRONGSWAN_MK="package/network/services/strongswan/Makefile"
           if [ -f "$STRONGSWAN_MK" ]; then
             echo "Patching $STRONGSWAN_MK to disable WolfSSL..."
-            cat >> "$STRONGSWAN_MK" <<'EOF'
-# Force OpenSSL instead of WolfSSL
-CONFIGURE_ARGS += --with-openssl --disable-wolfssl
-EOF
+            echo "# Force OpenSSL instead of WolfSSL" >> "$STRONGSWAN_MK"
+            echo "CONFIGURE_ARGS += --with-openssl --disable-wolfssl" >> "$STRONGSWAN_MK"
           else
             echo "StrongSwan Makefile not found!" && exit 1
           fi
